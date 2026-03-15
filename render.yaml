@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: eduflow-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Set these manually in the Render dashboard:
+      # MONGODB_URI, JWT_SECRET, FRONTEND_URL
