@@ -6,61 +6,58 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('../config/database');
 
-// Route imports
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const classRoutes = require('./routes/classes');
-const lessonRoutes = require('./routes/lessons');
-const examRoutes = require('./routes/exams');
-const attendanceRoutes = require('./routes/attendance');
-const financeRoutes = require('./routes/finance');
-const reminderRoutes = require('./routes/reminders');
-const dashboardRoutes = require('./routes/dashboard');
-
 const app = express();
 
 // Connect to MongoDB
 connectDB();
 
-// Security & utility middleware
-app.use(helmet());
+// ── CORS must be first — before helmet, before everything ─────────────────────
+const corsOptions = {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle preflight for every route
+app.options('*', cors(corsOptions));
+
+// ── Other middleware ───────────────────────────────────────────────────────────
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
-
-// CORS — allow the React frontend
-app.use(cors());
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting on auth routes
+// ── Rate limiting ─────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { success: false, message: 'Too many login attempts. Please try again later.' },
+  message: { success: false, message: 'Too many attempts. Please try again later.' },
 });
 
-// Routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/classes', classRoutes);
-app.use('/api/lessons', lessonRoutes);
-app.use('/api/exams', examRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/finance', financeRoutes);
-app.use('/api/reminders', reminderRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/auth',       authLimiter, require('./routes/auth'));
+app.use('/api/users',                   require('./routes/users'));
+app.use('/api/classes',                 require('./routes/classes'));
+app.use('/api/lessons',                 require('./routes/lessons'));
+app.use('/api/exams',                   require('./routes/exams'));
+app.use('/api/attendance',              require('./routes/attendance'));
+app.use('/api/finance',                 require('./routes/finance'));
+app.use('/api/reminders',               require('./routes/reminders'));
+app.use('/api/dashboard',               require('./routes/dashboard'));
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'EduFlow API is running', timestamp: new Date().toISOString() });
 });
 
-// 404 handler
+// ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
-// Global error handler
+// ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
   res.status(err.statusCode || 500).json({
@@ -70,8 +67,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 EduFlow API running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n🚀 EduFlow API running on port ${PORT}`);
   console.log(`📚 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔐 JWT expires in: ${process.env.JWT_EXPIRES_IN || '7d'}\n`);
 });
