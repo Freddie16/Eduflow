@@ -27,27 +27,7 @@ app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
 // CORS — allow the React frontend
-app.use(cors({
-  origin: (origin, callback) => {
-    const allowed = [
-      process.env.FRONTEND_URL,
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:5174',
-    ].filter(Boolean);
-
-    // Allow requests with no origin (mobile apps, Postman, curl)
-    if (!origin) return callback(null, true);
-
-    // Allow any Vercel preview deployment for this project
-    if (origin.endsWith('.vercel.app')) return callback(null, true);
-
-    if (allowed.includes(origin)) return callback(null, true);
-
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  },
-  credentials: true,
-}));
+app.use(cors());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
