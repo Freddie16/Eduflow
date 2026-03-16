@@ -7,12 +7,13 @@ const {
   createUser,
   updateUser,
   deleteUser,
+  linkParentStudent,
+  unlinkParentStudent,
 } = require('../controllers/userController');
 const { protect, authorize, scopeToSchool } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require a valid JWT and school scoping
 router.use(protect, scopeToSchool);
 
 router.route('/')
@@ -21,6 +22,8 @@ router.route('/')
 
 router.get('/students', authorize('principal', 'deputy', 'teacher'), getStudents);
 router.get('/teachers', authorize('principal', 'deputy'),            getTeachers);
+router.post('/link',    authorize('principal', 'deputy'),            linkParentStudent);
+router.post('/unlink',  authorize('principal', 'deputy'),            unlinkParentStudent);
 
 router.route('/:id')
   .get(getUser)

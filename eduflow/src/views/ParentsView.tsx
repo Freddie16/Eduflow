@@ -10,6 +10,7 @@ import { AddUserModal } from '../components/AddUserModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ActionMenu } from '../components/ActionMenu';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LinkModal } from '../components/LinkModal';
 import api from '../api';
 
 export function ParentsView() {
@@ -20,7 +21,8 @@ export function ParentsView() {
   const [isAddOpen, setIsAddOpen]     = useState(false);
   const [editTarget, setEditTarget]   = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [deleting, setDeleting]       = useState(false);
+  const [isLinkOpen, setIsLinkOpen]   = useState(false);
+  const [linkSeed, setLinkSeed]       = useState<any>(null);
 
   const fetchParents = () =>
     api.get('/users?role=parent').then((d: any) => setParents(d.data)).catch(console.error).finally(() => setLoading(false));
@@ -64,15 +66,23 @@ export function ParentsView() {
               className="bg-white border border-zinc-200 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 shadow-sm" />
           </div>
           {canManage && (
-            <button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2 px-6 py-2.5 bg-orange-500 text-white rounded-2xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200">
-              <Plus size={18} /> Add Parent
-            </button>
+            <>
+              <button onClick={() => setIsAddOpen(true)} className="flex items-center gap-2 px-6 py-2.5 bg-orange-500 text-white rounded-2xl text-sm font-bold hover:bg-orange-600 shadow-lg shadow-orange-200">
+                <Plus size={18} /> Add Parent
+              </button>
+              <button onClick={() => { setLinkSeed(null); setIsLinkOpen(true); }}
+                className="flex items-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-2xl text-sm font-bold hover:bg-zinc-700 shadow-lg transition-all">
+                🔗 Manage Links
+              </button>
+            </>
           )}
         </div>
       </div>
 
       <AddUserModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onCreated={(u) => setParents((p) => [u, ...p])} defaultRole="parent" />
       <EditUserModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} onUpdated={handleUpdated} user={editTarget} />
+      <LinkModal isOpen={isLinkOpen} onClose={() => setIsLinkOpen(false)}
+        seedUser={linkSeed || undefined} seedType={linkSeed ? 'parent' : undefined} onLinked={fetchParents} />
       <ConfirmDialog
         isOpen={!!deleteTarget} loading={deleting}
         title="Remove Parent"
@@ -103,6 +113,12 @@ export function ParentsView() {
               <div className="flex items-center gap-2 text-zinc-500"><Mail size={13} className="text-zinc-400 shrink-0" /><span className="truncate">{parent.email}</span></div>
               <div className="flex items-center gap-2 text-zinc-500"><Users size={13} className="text-zinc-400 shrink-0" />{parent.studentIds?.length || 0} linked student{parent.studentIds?.length !== 1 ? 's' : ''}</div>
             </div>
+            {canManage && (
+              <button onClick={() => { setLinkSeed(parent); setIsLinkOpen(true); }}
+                className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-colors">
+                🔗 Link / Manage Children
+              </button>
+            )}
           </div>
         ))}
       </div>

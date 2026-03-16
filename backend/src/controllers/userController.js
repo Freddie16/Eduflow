@@ -169,10 +169,68 @@ exports.updateUser = async (req, res) => {
 };
 
 /**
- * @desc   Deactivate a user (soft delete)
- * @route  DELETE /api/users/:id
- * @access Principal
+ * @desc   Link a student to a parent (bidirectional)
+ * @route  POST /api/users/link
+ * @access Principal, Deputy
  */
+exports.linkParentStudent = async (req, res) => {
+  try {
+    const { parentId, studentId } = req.body;
+
+    if (!parentId || !studentId) {
+      return res.status(400).json({ success: false, message: 'parentId and studentId are required.' });
+    }
+
+    // Verify both users belong to this school
+    const [parent, student] = await Promise.all([
+      User.findOne({ _id: parentId, schoolId: req.schoolId, role: 'parent' }),
+      User.findOne({ _id: studentId, schoolId: req.schoolId, role: 'student' }),
+    ]);
+
+    if (!parent)  return res.status(404).json({ success: false, message: 'Parent not found in this school.' });
+    if (!student) return res.status(404).json({ success: false, message: 'Student not found in this school.' });
+
+    // Check already linked
+    if (student.parentId?.toString() === parentId) {
+      return res.status(400).json({ success: false, message: 'Student is already linked to this parent.' });
+    }
+
+    // Bidirectional link
+    await Promise.all([
+      User.findByIdAndUpdate(studentId, { parentId }),
+      User.findByIdAndUpdate(parentId, { $addToSet: { studentIds: studentId } }),
+    ]);
+
+    res.json({ success: true, message: `${student.firstName} linked to ${parent.firstName} successfully.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * @desc   Unlink a student from a parent (bidirectional)
+ * @route  POST /api/users/unlink
+ * @access Principal, Deputy
+ */
+exports.unlinkParentStudent = async (req, res) => {
+  try {
+    const { parentId, studentId } = req.body;
+
+    if (!parentId || !studentId) {
+      return res.status(400).json({ success: false, message: 'parentId and studentId are required.' });
+    }
+
+    await Promise.all([
+      User.findByIdAndUpdate(studentId, { parentId: null }),
+      User.findByIdAndUpdate(parentId, { $pull: { studentIds: studentId } }),
+    ]);
+
+    res.json({ success: true, message: 'Link removed successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.deleteUser = async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(

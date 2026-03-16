@@ -11,6 +11,7 @@ import { AddUserModal } from '../components/AddUserModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ActionMenu } from '../components/ActionMenu';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LinkModal } from '../components/LinkModal';
 import api from '../api';
 
 export function StudentsView() {
@@ -23,6 +24,7 @@ export function StudentsView() {
   const [editTarget, setEditTarget]     = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting]         = useState(false);
+  const [linkTarget, setLinkTarget]     = useState<any>(null);
 
   const fetchStudents = () =>
     api.get('/users/students').then((d: any) => setStudents(d.data)).catch(console.error).finally(() => setLoading(false));
@@ -79,6 +81,7 @@ export function StudentsView() {
       <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={() => {}} title="Students" />
       <AddUserModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onCreated={(u) => setStudents((p) => [u, ...p])} defaultRole="student" />
       <EditUserModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} onUpdated={handleUpdated} user={editTarget} />
+      <LinkModal isOpen={!!linkTarget} onClose={() => setLinkTarget(null)} seedUser={linkTarget} seedType="student" onLinked={fetchStudents} />
       <ConfirmDialog
         isOpen={!!deleteTarget} loading={deleting}
         title="Delete Student"
@@ -130,11 +133,20 @@ export function StudentsView() {
                     </span>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <ActionMenu
-                      disabled={!canManage}
-                      onEdit={() => setEditTarget(student)}
-                      onDelete={() => setDeleteTarget(student)}
-                    />
+                    <div className="flex items-center justify-end gap-2">
+                      {canManage && (
+                        <button onClick={() => setLinkTarget(student)}
+                          title="Link to parent"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors">
+                          🔗 Link Parent
+                        </button>
+                      )}
+                      <ActionMenu
+                        disabled={!canManage}
+                        onEdit={() => setEditTarget(student)}
+                        onDelete={() => setDeleteTarget(student)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
