@@ -4,10 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Trophy, Plus, Clock, MapPin, AlertCircle, CheckCircle2, Bell, X, Users, Upload } from 'lucide-react';
+import { Calendar, Trophy, Plus, Clock, MapPin, Bell, X, Upload } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { useNotifications } from '../NotificationContext';
 import { CSVImportModal } from '../components/CSVImportModal';
+import { ActionMenu } from '../components/ActionMenu';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { motion, AnimatePresence } from 'motion/react';
 import api from '../api';
 
@@ -22,6 +24,8 @@ export function ExamsView() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newExam, setNewExam] = useState({ classId: '', subject: '', date: '', startTime: '', duration: '2h', location: '' });
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting]         = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -45,6 +49,17 @@ export function ExamsView() {
     } catch (err: any) {
       alert(err.message);
     }
+  };
+
+  const handleDeleteExam = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/exams/${deleteTarget._id}`);
+      setExams((prev) => prev.filter((e) => e._id !== deleteTarget._id));
+      setDeleteTarget(null);
+    } catch (err: any) { alert(err.message); }
+    finally { setDeleting(false); }
   };
 
   const handleSetReminder = async (exam: any) => {
@@ -82,6 +97,12 @@ export function ExamsView() {
       </div>
 
       <CSVImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={() => {}} title="Exams" />
+      <ConfirmDialog
+        isOpen={!!deleteTarget} loading={deleting}
+        title="Delete Exam"
+        message={`Delete the "${deleteTarget?.subject}" exam on ${deleteTarget?.date}?`}
+        onConfirm={handleDeleteExam} onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Create Exam Form */}
       <AnimatePresence>
@@ -135,10 +156,18 @@ export function ExamsView() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">
                   {exam.classId?.name || 'Class'}
                 </span>
-                <button onClick={() => handleSetReminder(exam)}
-                  className="p-2 bg-orange-50 hover:bg-orange-100 text-orange-500 rounded-xl transition-colors" title="Set reminder">
-                  <Bell size={14} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleSetReminder(exam)}
+                    className="p-2 bg-orange-50 hover:bg-orange-100 text-orange-500 rounded-xl transition-colors" title="Set reminder">
+                    <Bell size={14} />
+                  </button>
+                  <ActionMenu
+                    disabled={!['principal','deputy','teacher'].includes(user?.role || '')}
+                    onEdit={() => alert('Edit exam coming soon')}
+                    onDelete={() => setDeleteTarget(exam)}
+                    deleteLabel="Delete Exam"
+                  />
+                </div>
               </div>
               <h3 className="text-lg font-bold text-zinc-900 mb-4">{exam.subject}</h3>
               <div className="space-y-2 text-xs text-zinc-500">
