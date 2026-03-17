@@ -96,7 +96,7 @@ export function ExamsView() {
         </div>
       </div>
 
-      <CSVImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={() => {}} title="Exams" />
+      <CSVImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onImport={() => { api.get("/exams").then((d:any) => setExams(d.data)).catch(console.error); }} title="Exams" />
       <ConfirmDialog
         isOpen={!!deleteTarget} loading={deleting}
         title="Delete Exam"

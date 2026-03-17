@@ -4,13 +4,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Mail, Users, UserX } from 'lucide-react';
+import { Search, Plus, Mail, Users, UserX, Upload } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { AddUserModal } from '../components/AddUserModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ActionMenu } from '../components/ActionMenu';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LinkModal } from '../components/LinkModal';
+import { CSVImportModal } from '../components/CSVImportModal';
 import api from '../api';
 
 export function ParentsView() {
@@ -24,6 +25,7 @@ export function ParentsView() {
   const [deleting, setDeleting]         = useState(false);
   const [isLinkOpen, setIsLinkOpen]     = useState(false);
   const [linkSeed, setLinkSeed]         = useState<any>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const fetchParents = () =>
     api.get('/users?role=parent')
@@ -104,6 +106,7 @@ export function ParentsView() {
       </div>
 
       {/* Modals */}
+      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={fetchParents} title="Parents" />
       <AddUserModal
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}

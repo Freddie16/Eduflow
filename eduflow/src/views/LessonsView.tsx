@@ -81,7 +81,7 @@ export function LessonsView() {
         </div>
       </div>
 
-      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={() => {}} title="Lessons" />
+      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={() => { api.get("/lessons").then((d:any) => setLessons(d.data.map(mapLesson))).catch(console.error); }} title="Lessons" />
       <CreateLessonModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleCreate} classes={classes.filter((c) => c.schoolId === user?.schoolId)} />
       <ConfirmDialog
         isOpen={!!deleteTarget} loading={deleting}

@@ -78,7 +78,7 @@ export function StudentsView() {
         </div>
       </div>
 
-      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={() => {}} title="Students" />
+      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={fetchStudents} title="Students" />
       <AddUserModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onCreated={(u) => setStudents((p) => [u, ...p])} defaultRole="student" />
       <EditUserModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} onUpdated={handleUpdated} user={editTarget} />
       <LinkModal isOpen={!!linkTarget} onClose={() => setLinkTarget(null)} seedUser={linkTarget} seedType="student" onLinked={fetchStudents} />

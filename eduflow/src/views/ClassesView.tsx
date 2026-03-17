@@ -84,7 +84,7 @@ export function ClassesView() {
         </div>
       </div>
 
-      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={() => {}} title="Classes" />
+      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={fetchClasses} title="Classes" />
       <AddClassModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onCreated={(c) => setClasses((p) => [...p, c])} />
       <ConfirmDialog
         isOpen={!!deleteTarget} loading={deleting}

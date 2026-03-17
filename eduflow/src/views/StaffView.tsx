@@ -4,12 +4,13 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Mail, Shield, BookOpen, UserX } from 'lucide-react';
+import { Search, Plus, Mail, Shield, BookOpen, UserX, Upload } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { AddUserModal } from '../components/AddUserModal';
 import { EditUserModal } from '../components/EditUserModal';
 import { ActionMenu } from '../components/ActionMenu';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CSVImportModal } from '../components/CSVImportModal';
 import { Role } from '../types';
 import api from '../api';
 
@@ -28,6 +29,7 @@ export function StaffView() {
   const [editTarget, setEditTarget]   = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting]       = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const fetchStaff = () =>
     Promise.all([api.get('/users?role=teacher'), api.get('/users?role=deputy')])
@@ -72,6 +74,10 @@ export function StaffView() {
             <input type="text" placeholder="Search staff..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-white border border-zinc-200 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 shadow-sm" />
           </div>
+          <button onClick={() => setIsImportOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-2xl text-sm font-bold text-zinc-600 hover:bg-zinc-50 shadow-sm">
+            <Upload size={18} /> Import CSV
+          </button>
           {canManage && (
             <>
               <button onClick={() => { setAddRole('teacher'); setIsAddOpen(true); }}
@@ -87,6 +93,7 @@ export function StaffView() {
         </div>
       </div>
 
+      <CSVImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} onImport={fetchStaff} title="Staff" />
       <AddUserModal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} onCreated={(u) => setStaff((p) => [u, ...p])} defaultRole={addRole} />
       <EditUserModal isOpen={!!editTarget} onClose={() => setEditTarget(null)} onUpdated={handleUpdated} user={editTarget} />
       <ConfirmDialog
