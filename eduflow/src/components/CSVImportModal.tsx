@@ -57,7 +57,7 @@ const TEMPLATES: Record<string, { headers: string[]; example: string[][] }> = {
 };
 
 // ── Per-title API call ────────────────────────────────────────────────────────
-async function importRow(title: string, row: Record<string, string>): Promise<void> {
+async function importRow(title: string, row: Record<string, string>, overrideClassId?: string): Promise<void> {
   switch (title) {
     case 'Students':
       await api.post('/users', { ...row, role: 'student' });
@@ -71,15 +71,18 @@ async function importRow(title: string, row: Record<string, string>): Promise<vo
     case 'Classes':
       await api.post('/classes', row);
       break;
-    case 'Exams':
-      // Exams require a classId — we skip if not provided; user should add via UI instead
-      if (!row.classId) throw new Error('classId required for exams — use the Exams page instead');
-      await api.post('/exams', row);
+    case 'Exams': {
+      const classId = overrideClassId || row.classId;
+      if (!classId) throw new Error('No class selected');
+      await api.post('/exams', { ...row, classId });
       break;
-    case 'Lessons':
-      if (!row.classId) throw new Error('classId required for lessons');
-      await api.post('/lessons', { classId: row.classId, title: row.title, content: { body: row.body } });
+    }
+    case 'Lessons': {
+      const classId = overrideClassId || row.classId;
+      if (!classId) throw new Error('No class selected');
+      await api.post('/lessons', { classId, title: row.title, content: { body: row.body } });
       break;
+    }
     default:
       throw new Error(`Unknown import type: ${title}`);
   }
@@ -124,17 +127,30 @@ interface CSVImportModalProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function CSVImportModal({ isOpen, onClose, onImport, title }: CSVImportModalProps) {
-  const [file, setFile]         = useState<File | null>(null);
+  const [file, setFile]             = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [phase, setPhase]       = useState<Phase>('idle');
-  const [rows, setRows]         = useState<RowResult[]>([]);
-  const [current, setCurrent]   = useState(0);
-  const fileInputRef            = useRef<HTMLInputElement>(null);
+  const [phase, setPhase]           = useState<Phase>('idle');
+  const [rows, setRows]             = useState<RowResult[]>([]);
+  const [current, setCurrent]       = useState(0);
+  const [overrideClassId, setOverrideClassId] = useState('');
+  const [applyToAll, setApplyToAll]           = useState(true);
+  const [classes, setClasses]                 = useState<any[]>([]);
+  const fileInputRef                          = useRef<HTMLInputElement>(null);
+
+  const needsClass = title === 'Exams' || title === 'Lessons';
+
+  // Load classes when needed
+  React.useEffect(() => {
+    if (isOpen && needsClass) {
+      api.get('/classes').then((d: any) => setClasses(d.data)).catch(() => {});
+    }
+  }, [isOpen, needsClass]);
 
   const tpl = TEMPLATES[title];
 
   const reset = () => {
     setFile(null); setPhase('idle'); setRows([]); setCurrent(0);
+    setOverrideClassId(''); setApplyToAll(true);
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -158,15 +174,35 @@ export function CSVImportModal({ isOpen, onClose, onImport, title }: CSVImportMo
   };
 
   const handleImport = async () => {
+    if (needsClass && applyToAll && !overrideClassId) {
+      alert('Please select a class (or "All Classes") before importing.');
+      return;
+    }
+
     setPhase('importing');
     setCurrent(0);
-    const results: RowResult[] = rows.map((r) => ({ ...r, status: 'pending' }));
-    setRows([...results]);
+
+    // If "All Classes" selected, expand rows to one per class
+    let expandedRows: Array<{ row: Record<string,string>; status: RowResult['status']; error?: string }>;
+
+    if (needsClass && applyToAll && overrideClassId === 'ALL') {
+      expandedRows = classes.flatMap((cls) =>
+        rows.map((r) => ({ row: { ...r.row, _classId: cls._id, _className: cls.name }, status: 'pending' as const }))
+      );
+    } else {
+      expandedRows = rows.map((r) => ({ ...r, status: 'pending' as const }));
+    }
+
+    const results = [...expandedRows];
+    setRows(results);
 
     for (let i = 0; i < results.length; i++) {
       setCurrent(i + 1);
       try {
-        await importRow(title, results[i].row);
+        const classId = needsClass
+          ? (overrideClassId === 'ALL' ? results[i].row._classId : applyToAll ? overrideClassId : results[i].row.classId)
+          : undefined;
+        await importRow(title, results[i].row, classId);
         results[i] = { ...results[i], status: 'ok' };
       } catch (err: any) {
         results[i] = { ...results[i], status: 'error', error: err.message || 'Failed' };
@@ -265,6 +301,67 @@ export function CSVImportModal({ isOpen, onClose, onImport, title }: CSVImportMo
                 </>
               )}
 
+              {/* ── Class selector for Exams / Lessons ── */}
+              {phase === 'preview' && needsClass && (
+                <div className="p-5 bg-orange-50 border border-orange-200 rounded-2xl space-y-4">
+                  <p className="text-xs font-black text-orange-700 uppercase tracking-widest">
+                    Which class should these {title.toLowerCase()} apply to?
+                  </p>
+
+                  {/* Toggle: one class vs per-row */}
+                  <div className="flex gap-2">
+                    <button type="button"
+                      onClick={() => setApplyToAll(true)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${applyToAll ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'}`}>
+                      One class for all rows
+                    </button>
+                    <button type="button"
+                      onClick={() => setApplyToAll(false)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${!applyToAll ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'}`}>
+                      Use classId column per row
+                    </button>
+                  </div>
+
+                  {/* Class picker */}
+                  {applyToAll && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Apply to:</p>
+                      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                        {/* All classes option */}
+                        <button type="button"
+                          onClick={() => setOverrideClassId('ALL')}
+                          className={`flex items-center gap-2 p-3 rounded-xl border text-left text-xs font-bold transition-all ${overrideClassId === 'ALL' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'}`}>
+                          <span className="text-base">🏫</span>
+                          <span>All Classes</span>
+                        </button>
+                        {classes.map((cls) => (
+                          <button key={cls._id} type="button"
+                            onClick={() => setOverrideClassId(cls._id)}
+                            className={`flex items-center gap-2 p-3 rounded-xl border text-left text-xs font-bold transition-all ${overrideClassId === cls._id ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300'}`}>
+                            <span className="text-base">📚</span>
+                            <div>
+                              <p>{cls.name}</p>
+                              <p className="text-[9px] text-zinc-400 font-normal">Grade {cls.grade}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {overrideClassId === 'ALL' && (
+                        <p className="text-[10px] text-orange-600 font-bold">
+                          Each exam/lesson will be created once per class ({classes.length} total).
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {!applyToAll && (
+                    <p className="text-[10px] text-zinc-500">
+                      Your CSV must have a <strong>classId</strong> column with the MongoDB class ID for each row.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* ── PREVIEW: show parsed rows ── */}
               {phase === 'preview' && rows.length > 0 && (
                 <>
@@ -334,6 +431,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, title }: CSVImportMo
                       }`}>
                         <span className="font-black text-zinc-400 w-5 shrink-0">{i + 1}</span>
                         <span className="flex-1 text-zinc-700 truncate">
+                          {r.row._className ? `[${r.row._className}] ` : ''}
                           {r.row.firstName ? `${r.row.firstName} ${r.row.lastName}` : r.row.name || r.row.subject || r.row.title || JSON.stringify(r.row).slice(0, 40)}
                         </span>
                         {r.status === 'ok'      && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
@@ -395,7 +493,10 @@ export function CSVImportModal({ isOpen, onClose, onImport, title }: CSVImportMo
                   </button>
                   <button onClick={handleImport}
                     className="flex-1 py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-orange-200 flex items-center justify-center gap-2 transition-all">
-                    <ChevronRight size={16} /> Import {rows.length} Rows
+                    <ChevronRight size={16} />
+                    {needsClass && applyToAll && overrideClassId === 'ALL'
+                      ? `Import ${rows.length} × ${classes.length} classes = ${rows.length * classes.length} rows`
+                      : `Import ${rows.length} Rows`}
                   </button>
                 </>
               )}
